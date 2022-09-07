@@ -340,10 +340,10 @@ def visualize_attr(im, results, boxes=None, is_mtmct=False):
         im = np.ascontiguousarray(np.copy(im))
 
     im_h, im_w = im.shape[:2]
-    text_scale = max(0.5, im.shape[0] / 3000.)
-    text_thickness = 1
+    text_scale = max(0.5, im.shape[0] / 1000.)
+    text_thickness = 5
 
-    line_inter = im.shape[0] / 40.
+    line_inter = im.shape[0] / 20.
     for i, res in enumerate(results):
         if boxes is None:
             text_w = 3
@@ -378,8 +378,8 @@ def visualize_action(im,
     im = cv2.imread(im) if isinstance(im, str) else im
     im_h, im_w = im.shape[:2]
 
-    text_scale = max(1, im.shape[1] / 1600.)
-    text_thickness = 2
+    text_scale = max(1, im.shape[1] / 300.)
+    text_thickness = 5
 
     if action_visual_collector:
         id_action_dict = {}
@@ -391,11 +391,11 @@ def visualize_action(im,
         for mot_box in mot_boxes:
             # mot_box is a format with [mot_id, class, score, xmin, ymin, w, h] 
             if mot_box[0] in id_action_dict:
-                text_position = (int(mot_box[3] + mot_box[5] * 0.75),
-                                 int(mot_box[4] - 10))
+                text_position = (int(mot_box[3] + mot_box[5] * 0.5),
+                                 int(mot_box[4] + 200))
                 display_text = ', '.join(id_action_dict[mot_box[0]])
                 cv2.putText(im, display_text, text_position,
-                            cv2.FONT_HERSHEY_PLAIN, text_scale, (0, 0, 255), 2)
+                            cv2.FONT_HERSHEY_PLAIN, text_scale, (0, 0, 255), text_thickness)
 
     if video_action_score:
         cv2.putText(
@@ -418,8 +418,8 @@ def visualize_vehicleplate(im, results, boxes=None):
         im = np.ascontiguousarray(np.copy(im))
 
     im_h, im_w = im.shape[:2]
-    text_scale = max(1.0, im.shape[0] / 1600.)
-    text_thickness = 2
+    text_scale = max(1.0, im.shape[0] / 300.)
+    text_thickness = 10
 
     line_inter = im.shape[0] / 40.
     for i, res in enumerate(results):
