@@ -703,6 +703,64 @@ class RandomFlip(BaseOperator):
 
 
 @register_op
+class RandomRot(BaseOperator):
+    def __init__(self, prob=0.5):
+        """
+        Args:
+            prob (float): the probability of flipping image
+        """
+        super(RandomFlip, self).__init__()
+        self.prob = prob
+        if not (isinstance(self.prob, float)):
+            raise TypeError("{}: input type is invalid.".format(self))
+
+    def apply_image(self, image, direct=1):
+        image = np.rot90(image, direct)
+        return image
+
+    def apply_bbox(self, bbox, height, width, direct=1):
+        xmin, ymin, xmax, ymax = bbox
+        if direct == 1:
+            return [ymin, width - xmax, ymax, width - xmin]
+        else:
+            return [height - ymax, xmin, height - ymin, xmax]
+
+        oldx1 = bbox[:, 0].copy()
+        oldx2 = bbox[:, 2].copy()
+        bbox[:, 0] = width - oldx2
+        bbox[:, 2] = width - oldx1
+        return bbox
+
+    def apply(self, sample, context=None):
+        """Filp the image and bounding box.
+        Operators:
+            1. Flip the image numpy.
+            2. Transform the bboxes' x coordinates.
+              (Must judge whether the coordinates are normalized!)
+            3. Transform the segmentations' x coordinates.
+              (Must judge whether the coordinates are normalized!)
+        Output:
+            sample: the image, bounding box and segmentation part
+                    in sample are flipped.
+        """
+        prob = np.random.uniform(0, 1)
+        if prob < self.prob:
+            if prob < self.prob / 2.:
+                direct = 1
+            else:
+                direct = -1
+
+            im = sample['image']
+            height, width = im.shape[:2]
+            im = self.apply_image(im, direct)
+            if 'gt_bbox' in sample and len(sample['gt_bbox']) > 0:
+                sample['gt_bbox'] = self.apply_bbox(sample['gt_bbox'], height,
+                                                    width, direct)
+            sample['image'] = im
+        return sample
+
+
+@register_op
 class Resize(BaseOperator):
     def __init__(self, target_size, keep_ratio, interp=cv2.INTER_LINEAR):
         """
