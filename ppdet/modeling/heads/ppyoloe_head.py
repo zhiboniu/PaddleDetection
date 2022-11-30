@@ -21,7 +21,7 @@ from ..bbox_utils import batch_distance2bbox
 from ..losses import GIoULoss
 from ..initializer import bias_init_with_prob, constant_, normal_
 from ..assigners.utils import generate_anchors_for_grid_cell
-from ppdet.modeling.backbones.cspresnet import ConvBNLayer
+from ppdet.modeling.backbones.cspresnet import ConvBNLayer, RepVggBlock
 from ppdet.modeling.ops import get_static_shape, get_act_fn
 from ppdet.modeling.layers import MultiClassNMS
 
@@ -43,6 +43,23 @@ class ESEAttn(nn.Layer):
         weight = F.sigmoid(self.fc(avg_feat))
         return self.conv(feat * weight)
 
+#debug 加强clas分类能力, 增加层数，增加kernelsize
+class En_ESEAttn(nn.Layer):
+    def __init__(self, feat_channels, act='swish'):
+        super(En_ESEAttn, self).__init__()
+        self.fc = nn.Conv2D(feat_channels, feat_channels, 1)
+        self.convmodule = nn.Sequential()
+        for i in range(1):
+            self.convmodule.add_sublayer("conv"+str(i+1), RepVggBlock(feat_channels, feat_channels, act=act))
+
+        self._init_weights()
+
+    def _init_weights(self):
+        normal_(self.fc.weight, std=0.001)
+
+    def forward(self, feat, avg_feat):
+        weight = F.sigmoid(self.fc(avg_feat))
+        return self.convmodule(feat * weight)
 
 @register
 class PPYOLOEHead(nn.Layer):
@@ -101,8 +118,8 @@ class PPYOLOEHead(nn.Layer):
             act, trt=trt) if act is None or isinstance(act,
                                                        (str, dict)) else act
         for in_c in self.in_channels:
-            self.stem_cls.append(ESEAttn(in_c, act=act))
-            self.stem_reg.append(ESEAttn(in_c, act=act))
+            self.stem_cls.append(En_ESEAttn(in_c, act=act))
+            self.stem_reg.append(En_ESEAttn(in_c, act=act))
         # pred head
         self.pred_cls = nn.LayerList()
         self.pred_reg = nn.LayerList()
@@ -130,7 +147,7 @@ class PPYOLOEHead(nn.Layer):
             constant_(reg_.weight)
             constant_(reg_.bias, 1.0)
 
-        proj = paddle.linspace(0, self.reg_max, self.reg_max + 1).reshape(
+        proj = paddle.linspace(-2, self.reg_max-2, self.reg_max + 1).reshape(
             [1, self.reg_max + 1, 1, 1])
         self.proj_conv.weight.set_value(proj)
         self.proj_conv.weight.stop_gradient = True
@@ -245,8 +262,8 @@ class PPYOLOEHead(nn.Layer):
 
     def _bbox2distance(self, points, bbox):
         x1y1, x2y2 = paddle.split(bbox, 2, -1)
-        lt = points - x1y1
-        rb = x2y2 - points
+        lt = points - x1y1 + 2
+        rb = x2y2 - points + 2
         return paddle.concat([lt, rb], -1).clip(0, self.reg_max - 0.01)
 
     def _df_loss(self, pred_dist, target):
@@ -332,6 +349,7 @@ class PPYOLOEHead(nn.Layer):
                 pad_gt_mask,
                 bg_index=self.num_classes)
             alpha_l = -1
+
         # rescale bbox
         assigned_bboxes /= stride_tensor
         # cls loss
