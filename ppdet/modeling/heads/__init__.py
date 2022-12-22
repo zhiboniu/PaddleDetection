@@ -65,3 +65,4 @@ from .ld_gfl_head import *
 from .ppyoloe_r_head import *
 from .yolof_head import *
 from .ppyoloe_contrast_head import *
+from .petr_head import *

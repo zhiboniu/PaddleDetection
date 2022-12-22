@@ -66,3 +66,4 @@ from .bytetrack import *
 from .yolox import *
 from .yolof import *
 from .pose3d_metro import *
+from .keypoint_petr import *

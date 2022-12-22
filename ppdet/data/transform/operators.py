@@ -746,6 +746,17 @@ class Resize(BaseOperator):
         bbox[:, 1::2] = np.clip(bbox[:, 1::2], 0, resize_h)
         return bbox
 
+    def apply_joints(self, joints, scale, size):
+        im_scale_x, im_scale_y = scale
+        resize_w, resize_h = size
+        joints[..., 0] *= im_scale_x
+        joints[..., 1] *= im_scale_y
+        joints[np.trunc(joints[..., 0]) > resize_w, :] = 0
+        joints[np.trunc(joints[..., 1]) > resize_h, :] = 0
+        joints[np.trunc(joints[..., 0]) < 0, :] = 0
+        joints[np.trunc(joints[..., 1]) < 0, :] = 0
+        return joints
+
     def apply_segm(self, segms, im_size, scale):
         def _resize_poly(poly, im_scale_x, im_scale_y):
             resized_poly = np.array(poly).astype('float32')
@@ -807,8 +818,8 @@ class Resize(BaseOperator):
             im_scale = min(target_size_min / im_size_min,
                            target_size_max / im_size_max)
 
-            resize_h = im_scale * float(im_shape[0])
-            resize_w = im_scale * float(im_shape[1])
+            resize_h = int(im_scale * float(im_shape[0]) + 0.5)
+            resize_w = int(im_scale * float(im_shape[1]) + 0.5)
 
             im_scale_x = im_scale
             im_scale_y = im_scale
@@ -867,6 +878,11 @@ class Resize(BaseOperator):
                 for gt_segm in sample['gt_segm']
             ]
             sample['gt_segm'] = np.asarray(masks).astype(np.uint8)
+
+        if 'gt_joints' in sample:
+            sample['gt_joints'] = self.apply_joints(sample['gt_joints'],
+                                                [im_scale_x, im_scale_y],
+                                                [resize_w, resize_h])
 
         return sample
 
@@ -1445,7 +1461,7 @@ class RandomCrop(BaseOperator):
                 crop_y = np.random.randint(0, h - crop_h)
                 crop_x = np.random.randint(0, w - crop_w)
                 crop_box = [crop_x, crop_y, crop_x + crop_w, crop_y + crop_h]
-                iou = self._iou_matrix(
+                iou = self._gtcropiou_matrix(
                     gt_bbox, np.array(
                         [crop_box], dtype=np.float32))
                 if iou.max() < thresh:
@@ -1507,6 +1523,9 @@ class RandomCrop(BaseOperator):
                 if 'difficult' in sample:
                     sample['difficult'] = np.take(
                         sample['difficult'], valid_ids, axis=0)
+                
+                if 'gt_joints' in sample:
+                    sample['gt_joints'] = self._crop_joints(sample['gt_joints'], crop_box)
 
                 return sample
 
@@ -1521,6 +1540,16 @@ class RandomCrop(BaseOperator):
         area_b = np.prod(b[:, 2:] - b[:, :2], axis=1)
         area_o = (area_a[:, np.newaxis] + area_b - area_i)
         return area_i / (area_o + 1e-10)
+
+    def _gtcropiou_matrix(self, a, b):
+        tl_i = np.maximum(a[:, np.newaxis, :2], b[:, :2])
+        br_i = np.minimum(a[:, np.newaxis, 2:], b[:, 2:])
+
+        area_i = np.prod(br_i - tl_i, axis=2) * (tl_i < br_i).all(axis=2)
+        area_a = np.prod(a[:, 2:] - a[:, :2], axis=1)
+        area_b = np.prod(b[:, 2:] - b[:, :2], axis=1)
+        area_o = (area_a[:, np.newaxis] + area_b - area_i)
+        return area_i / (area_a + 1e-10)
 
     def _crop_box_with_center_constraint(self, box, crop):
         cropped_box = box.copy()
@@ -1546,6 +1575,15 @@ class RandomCrop(BaseOperator):
         x1, y1, x2, y2 = crop
         return segm[:, y1:y2, x1:x2]
 
+    def _crop_joints(self, joints, crop):
+        x1, y1, x2, y2 = crop
+        joints[np.trunc(joints[..., 0]) > x2, :] = 0
+        joints[np.trunc(joints[..., 1]) > y2, :] = 0
+        joints[np.trunc(joints[..., 0]) < x1, :] = 0
+        joints[np.trunc(joints[..., 1]) < y1, :] = 0
+        joints[..., 0] -= x1
+        joints[..., 1] -= y1
+        return joints
 
 @register_op
 class RandomScaledCrop(BaseOperator):
@@ -1574,8 +1612,8 @@ class RandomScaledCrop(BaseOperator):
         random_dim = int(dim * random_scale)
         dim_max = max(h, w)
         scale = random_dim / dim_max
-        resize_w = w * scale
-        resize_h = h * scale
+        resize_w = int(w * scale + 0.5)
+        resize_h = int(h * scale + 0.5)
         offset_x = int(max(0, np.random.uniform(0., resize_w - dim)))
         offset_y = int(max(0, np.random.uniform(0., resize_h - dim)))
 
@@ -2310,7 +2348,7 @@ class RandomResizeCrop(BaseOperator):
                 crop_x = random.randint(0, w - crop_w)
 
                 crop_box = [crop_x, crop_y, crop_x + crop_w, crop_y + crop_h]
-                iou = self._iou_matrix(
+                iou = self._gtcropiou_matrix(
                     gt_bbox, np.array(
                         [crop_box], dtype=np.float32))
                 if iou.max() < thresh:
@@ -2368,6 +2406,13 @@ class RandomResizeCrop(BaseOperator):
                 if 'is_crowd' in sample:
                     sample['is_crowd'] = np.take(
                         sample['is_crowd'], valid_ids, axis=0)
+
+                if 'gt_areas' in sample:
+                    sample['gt_areas'] = np.take(sample['gt_areas'], valid_ids, axis=0)
+
+                if 'gt_joints' in sample:
+                    gt_joints = self._crop_joints(sample['gt_joints'], crop_box)
+                    sample['gt_joints'] = gt_joints[valid_ids]
                 return sample
 
         return sample
@@ -2400,8 +2445,8 @@ class RandomResizeCrop(BaseOperator):
                 im_scale = max(target_size_min / im_size_min,
                                target_size_max / im_size_max)
 
-            resize_h = im_scale * float(im_shape[0])
-            resize_w = im_scale * float(im_shape[1])
+            resize_h = int(im_scale * float(im_shape[0]) + 0.5)
+            resize_w = int(im_scale * float(im_shape[1]) + 0.5)
 
             im_scale_x = im_scale
             im_scale_y = im_scale
@@ -2460,6 +2505,11 @@ class RandomResizeCrop(BaseOperator):
                 for gt_segm in sample['gt_segm']
             ]
             sample['gt_segm'] = np.asarray(masks).astype(np.uint8)
+
+        if 'gt_joints' in sample:
+            sample['gt_joints'] = self.apply_joints(sample['gt_joints'],
+                                                [im_scale_x, im_scale_y],
+                                                [resize_w, resize_h])
 
         return sample
 
