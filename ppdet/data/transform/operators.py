@@ -2764,7 +2764,7 @@ class RandomShortSideRangeResize(RandomShortSideResize):
         interp = random.choice(
             self.interps) if self.random_interp else self.interp
 
-        return self.resize(sample, short_edge, self.max_size, interp)
+        return self.resize(sample, short_edge, long_edge, interp)
 
 @register_op
 class RandomSizeCrop(BaseOperator):

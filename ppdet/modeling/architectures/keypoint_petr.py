@@ -69,7 +69,6 @@ class PETR(BaseArch):
 
     def get_inputs(self):
         img_metas = []
-        img_metas = []
         gt_bboxes = []
         gt_labels = []
         gt_keypoints = []
@@ -127,7 +126,6 @@ class PETR(BaseArch):
         Returns:
             dict[str, Tensor]: A dictionary of loss components.
         """
-        img = self.inputs['image']
         
         img_metas, gt_bboxes, gt_labels, gt_keypoints, gt_areas = self.get_inputs()
         gt_bboxes_ignore = getattr(self.inputs, 'gt_bboxes_ignore', None)
