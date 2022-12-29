@@ -529,6 +529,7 @@ class Trainer(object):
                     else:
                         # model forward
                         # data['image'][...] = 1.0
+                        # print(data['image'].shape)
                         outputs = model(data)
                         loss = outputs['loss']
                         # model backward

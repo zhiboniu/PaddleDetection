@@ -1089,10 +1089,11 @@ class PadGT(BaseOperator):
                                 1 means bbox, 0 means no bbox.
     """
 
-    def __init__(self, return_gt_mask=True, pad_img=False):
+    def __init__(self, return_gt_mask=True, pad_img=False, minimum_gtnum=0):
         super(PadGT, self).__init__()
         self.return_gt_mask = return_gt_mask
         self.pad_img = pad_img
+        self.minimum_gtnum = minimum_gtnum
 
     def _impad(self, img: np.ndarray,
             *,
@@ -1189,6 +1190,7 @@ class PadGT(BaseOperator):
 
     def __call__(self, samples, context=None):
         num_max_boxes = max([len(s['gt_bbox']) for s in samples])
+        num_max_boxes = max(self.minimum_gtnum, num_max_boxes)
         if self.pad_img:
             maxshape = self.checkmaxshape(samples)
         for sample in samples:

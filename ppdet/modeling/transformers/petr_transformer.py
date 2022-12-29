@@ -28,8 +28,8 @@ from .position_encoding import PositionEmbedding
 from .utils import _get_clones, deformable_attention_core_func
 from ..initializer import linear_init_, conv_init_, xavier_uniform_, normal_, constant_
 
-__all__ = ['PETRTransformer', 'MultiScaleDeformablePoseAttention', 'TransformerEncoderLayer', 
-    'PETR_TransformerEncoder', 'PETR_TransformerDecoderLayer', 'PETR_TransformerDecoder', 'PETR_TransformerDecoder', 
+__all__ = ['PETRTransformer', 'MultiScaleDeformablePoseAttention', 
+    'PETR_TransformerDecoderLayer', 'PETR_TransformerDecoder', 
     'PETR_DeformableDetrTransformerDecoder', 'PETR_DeformableTransformerDecoder']
 
 def masked_fill(x, mask, value):
@@ -234,90 +234,90 @@ class MultiScaleDeformablePoseAttention(nn.Layer):
         # return self.dropout(output) + inp_residual
         return output
 
-@register
-class TransformerEncoderLayer(nn.Layer):
-    __inject__ = ['attn']
+# @register
+# class TransformerEncoderLayer(nn.Layer):
+#     __inject__ = ['attn']
 
-    def __init__(self,
-                 d_model,
-                 attn=None,
-                 nhead=8,
-                 dim_feedforward=2048,
-                 dropout=0.1,
-                 activation="relu",
-                 attn_dropout=None,
-                 act_dropout=None,
-                 normalize_before=False):
-        super(TransformerEncoderLayer, self).__init__()
-        attn_dropout = dropout if attn_dropout is None else attn_dropout
-        act_dropout = dropout if act_dropout is None else act_dropout
-        self.normalize_before = normalize_before
-        self.embed_dims = d_model
+#     def __init__(self,
+#                  d_model,
+#                  attn=None,
+#                  nhead=8,
+#                  dim_feedforward=2048,
+#                  dropout=0.1,
+#                  activation="relu",
+#                  attn_dropout=None,
+#                  act_dropout=None,
+#                  normalize_before=False):
+#         super(TransformerEncoderLayer, self).__init__()
+#         attn_dropout = dropout if attn_dropout is None else attn_dropout
+#         act_dropout = dropout if act_dropout is None else act_dropout
+#         self.normalize_before = normalize_before
+#         self.embed_dims = d_model
 
-        if attn is None:
-            self.self_attn = MultiHeadAttention(d_model, nhead, attn_dropout)
-        else:
-            self.self_attn = attn
-        # Implementation of Feedforward model
-        self.linear1 = nn.Linear(d_model, dim_feedforward)
-        self.dropout = nn.Dropout(act_dropout, mode="upscale_in_train")
-        self.linear2 = nn.Linear(dim_feedforward, d_model)
+#         if attn is None:
+#             self.self_attn = MultiHeadAttention(d_model, nhead, attn_dropout)
+#         else:
+#             self.self_attn = attn
+#         # Implementation of Feedforward model
+#         self.linear1 = nn.Linear(d_model, dim_feedforward)
+#         self.dropout = nn.Dropout(act_dropout, mode="upscale_in_train")
+#         self.linear2 = nn.Linear(dim_feedforward, d_model)
 
-        self.norm1 = nn.LayerNorm(d_model)
-        self.norm2 = nn.LayerNorm(d_model)
-        self.dropout1 = nn.Dropout(dropout, mode="upscale_in_train")
-        self.dropout2 = nn.Dropout(dropout, mode="upscale_in_train")
-        self.activation = getattr(F, activation)
-        self._reset_parameters()
+#         self.norm1 = nn.LayerNorm(d_model)
+#         self.norm2 = nn.LayerNorm(d_model)
+#         self.dropout1 = nn.Dropout(dropout, mode="upscale_in_train")
+#         self.dropout2 = nn.Dropout(dropout, mode="upscale_in_train")
+#         self.activation = getattr(F, activation)
+#         self._reset_parameters()
 
-    def _reset_parameters(self):
-        linear_init_(self.linear1)
-        linear_init_(self.linear2)
+#     def _reset_parameters(self):
+#         linear_init_(self.linear1)
+#         linear_init_(self.linear2)
 
-    @staticmethod
-    def with_pos_embed(tensor, pos_embed):
-        return tensor if pos_embed is None else tensor + pos_embed
+#     @staticmethod
+#     def with_pos_embed(tensor, pos_embed):
+#         return tensor if pos_embed is None else tensor + pos_embed
 
-    def forward(self, src, src_mask=None, pos_embed=None, **kwargs):
-        residual = src
-        if self.normalize_before:
-            src = self.norm1(src)
-        q = k = self.with_pos_embed(src, pos_embed)
-        src = self.self_attn(q, k, value=src, attn_mask=src_mask, **kwargs)
+#     def forward(self, src, src_mask=None, pos_embed=None, **kwargs):
+#         residual = src
+#         if self.normalize_before:
+#             src = self.norm1(src)
+#         q = k = self.with_pos_embed(src, pos_embed)
+#         src = self.self_attn(q, k, value=src, attn_mask=src_mask, **kwargs)
 
-        src = residual + self.dropout1(src)
-        if not self.normalize_before:
-            src = self.norm1(src)
+#         src = residual + self.dropout1(src)
+#         if not self.normalize_before:
+#             src = self.norm1(src)
 
-        residual = src
-        if self.normalize_before:
-            src = self.norm2(src)
-        src = self.linear2(self.dropout(self.activation(self.linear1(src))))
-        src = residual + self.dropout2(src)
-        if not self.normalize_before:
-            src = self.norm2(src)
-        return src
+#         residual = src
+#         if self.normalize_before:
+#             src = self.norm2(src)
+#         src = self.linear2(self.dropout(self.activation(self.linear1(src))))
+#         src = residual + self.dropout2(src)
+#         if not self.normalize_before:
+#             src = self.norm2(src)
+#         return src
 
-@register
-class PETR_TransformerEncoder(nn.Layer):
-    __inject__ = ['encoder_layer']
+# @register
+# class TransformerEncoder(nn.Layer):
+#     __inject__ = ['encoder_layer']
 
-    def __init__(self, encoder_layer, num_layers, norm=None):
-        super(PETR_TransformerEncoder, self).__init__()
-        self.layers = _get_clones(encoder_layer, num_layers)
-        self.num_layers = num_layers
-        self.norm = norm
-        self.embed_dims = encoder_layer.embed_dims
+#     def __init__(self, encoder_layer, num_layers, norm=None):
+#         super(TransformerEncoder, self).__init__()
+#         self.layers = _get_clones(encoder_layer, num_layers)
+#         self.num_layers = num_layers
+#         self.norm = norm
+#         self.embed_dims = encoder_layer.embed_dims
 
-    def forward(self, src, src_mask=None, pos_embed=None, **kwargs):
-        output = src
-        for layer in self.layers:
-            output = layer(output, src_mask=src_mask, pos_embed=pos_embed, **kwargs)
+#     def forward(self, src, src_mask=None, pos_embed=None, **kwargs):
+#         output = src
+#         for layer in self.layers:
+#             output = layer(output, src_mask=src_mask, pos_embed=pos_embed, **kwargs)
 
-        if self.norm is not None:
-            output = self.norm(output)
+#         if self.norm is not None:
+#             output = self.norm(output)
 
-        return output
+#         return output
 
 @register
 class PETR_TransformerDecoderLayer(nn.Layer):

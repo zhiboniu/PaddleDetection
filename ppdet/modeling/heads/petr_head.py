@@ -773,7 +773,6 @@ class PETRHead(nn.Layer):
                 pos_valid,
                 pos_areas,
                 avg_factor=num_total_pos)
-
         return loss_cls, loss_kpt, loss_oks, kpt_preds, kpt_targets, \
             area_targets, kpt_weights
 

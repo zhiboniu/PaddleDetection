@@ -74,24 +74,33 @@ class PETR(BaseArch):
         gt_labels = []
         gt_keypoints = []
         gt_areas = []
+        # print("gt_bbox shape", self.inputs['gt_bbox'].shape)
         pad_gt_mask = self.inputs['pad_gt_mask'].astype("bool").squeeze(-1)
         for idx, im_shape in enumerate(self.inputs['im_shape']):
             img_meta = {'img_shape': im_shape.astype("int32").tolist()+[1,], 'batch_input_shape': self.inputs['image'].shape[-2:], 'image_name': self.inputs['image_file'][idx]}
             img_metas.append(img_meta)
-            if self.inputs['gt_joints'].size==0:
-                gt_keypoints.append(self.inputs['gt_joints'][idx])
-                gt_labels.append(self.inputs['gt_class'][idx])
-                gt_bboxes.append(self.inputs['gt_bbox'][idx])
-                gt_areas.append(self.inputs['gt_areas'][idx])
+            if (not pad_gt_mask[idx].any()):
+                # import pdb;pdb.set_trace()
+                gt_keypoints.append(self.inputs['gt_joints'][idx][:1])
+                gt_labels.append(self.inputs['gt_class'][idx][:1])
+                gt_bboxes.append(self.inputs['gt_bbox'][idx][:1])
+                gt_areas.append(self.inputs['gt_areas'][idx][:1])
+                if self.inputs['gt_joints'][idx][:1].shape[0]==0:
+                    import pdb;pdb.set_trace()
                 continue
-            joints = self.inputs['gt_joints'][idx][pad_gt_mask[idx]]
-            valid_joints = (joints[..., 2] > 0).any(-1)
-
+            if self.inputs['gt_joints'][idx].size==0:
+                import pdb;pdb.set_trace()
+            # joints = self.inputs['gt_joints'][idx][pad_gt_mask[idx]]
+            # if joints.shape[0]==0:
+            #     import pdb;pdb.set_trace()
+            # valid_joints = (joints[..., 2] > 0).any(-1)
             
             gt_keypoints.append(self.inputs['gt_joints'][idx][pad_gt_mask[idx]])
             gt_labels.append(self.inputs['gt_class'][idx][pad_gt_mask[idx]])
             gt_bboxes.append(self.inputs['gt_bbox'][idx][pad_gt_mask[idx]])
             gt_areas.append(self.inputs['gt_areas'][idx][pad_gt_mask[idx]])
+            if self.inputs['gt_joints'][idx][pad_gt_mask[idx]].shape[0]==0:
+                import pdb;pdb.set_trace()
 
         return img_metas, gt_bboxes, gt_labels, gt_keypoints, gt_areas
 
@@ -156,18 +165,19 @@ class PETR(BaseArch):
         """
         img = self.inputs['image']
         batch_size, _, height, width = img.shape
-        dummy_img_metas = [
+        # print(self.inputs.keys())
+        # import pdb;pdb.set_trace()
+        img_metas = [
             dict(
                 batch_input_shape=(height, width),
                 img_shape=(height, width, 3),
-                scale_factor=(1., 1., 1., 1.)) for _ in range(batch_size)
+                scale_factor=self.inputs['scale_factor'][i]) for i in range(batch_size)
         ]
-        kptpred = self.simple_test(self.inputs, img_metas=dummy_img_metas)
+        # import pdb;pdb.set_trace()
+        kptpred = self.simple_test(self.inputs, img_metas=img_metas, rescale=True)
         keypoints = kptpred[0][1][0]
         bboxs = kptpred[0][0][0]
         keypoints[...,2]=bboxs[:, None, 4]
-        # print("kptpred:{}".format(keypoints))
-        # import pdb;pdb.set_trace()
         res_lst = [[keypoints, bboxs[:,4]]]
         outputs = {'keypoint': res_lst}
         return outputs
@@ -189,7 +199,6 @@ class PETR(BaseArch):
         batch_size = len(img_metas)
         assert batch_size == 1, 'Currently only batch_size 1 for inference ' \
             f'mode is supported. Found batch_size {batch_size}.'
-        
         feat = self.extract_feat(inputs)
         results_list = self.bbox_head.simple_test(
             feat, img_metas, rescale=rescale)
