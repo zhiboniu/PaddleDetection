@@ -229,7 +229,6 @@ class RandomAffine(object):
         gt_bbox = None
         if 'gt_joints' in records:
             keypoints = records['gt_joints']
-            # keypoints[..., :2] *= shape
 
         if 'mask' in records:
             heatmap_mask = records['mask']
@@ -263,14 +262,16 @@ class RandomAffine(object):
         input_size = 2 * center
         if self.trainsize != -1:
             dsize = self.trainsize
+            imgshape = (dsize, dsize)
         else:
             dsize = int(scale)
+            imgshape = (shape.tolist())
 
         image_affine_mat = self._get_affine_matrix(
             center, roi_size, (dsize, dsize), degree)[:2]
         image = cv2.warpAffine(
             image,
-            image_affine_mat, (dsize, dsize),
+            image_affine_mat, imgshape,
             flags=cv2.INTER_LINEAR)
 
         if self.hmsize is None:
