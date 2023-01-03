@@ -96,7 +96,8 @@ class PETRCocoDataset(KeypointBottomUpBaseDataset):
                 anno = self.coco.loadAnns(ann_ids)
                 anno = [
                     obj for obj in anno
-                    if obj['iscrowd'] == 0 and obj['num_keypoints'] > 0
+                    if obj['iscrowd'] == 0
+                    # if obj['iscrowd'] == 0 and obj['num_keypoints'] > 0
                 ]
                 if len(anno)==0:
                     continue

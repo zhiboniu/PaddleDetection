@@ -143,7 +143,7 @@ class MultiScaleDeformablePoseAttention(nn.Layer):
                 attn_mask=None,
                 reference_points=None,
                 value_spatial_shapes=None,
-                level_start_index=None,
+                value_level_start_index=None,
                 **kwargs):
         """Forward Function of MultiScaleDeformAttention.
 
@@ -164,7 +164,7 @@ class MultiScaleDeformablePoseAttention(nn.Layer):
             value_spatial_shapes (Tensor): Spatial shape of features in
                 different level. With shape  (num_levels, 2),
                 last dimension represent (h, w).
-            level_start_index (Tensor): The start index of each level.
+            value_level_start_index (Tensor): The start index of each level.
                 A tensor has shape (num_levels) and can be represented
                 as [0, h_0*w_0, h_0*w_0+h_1*w_1, ...].
 
@@ -901,7 +901,7 @@ class PETRTransformer(nn.Layer):
             src_mask=mask_flatten,
             value_spatial_shapes=spatial_shapes,
             reference_points=reference_points,
-            level_start_index=level_start_index,
+            value_level_start_index=level_start_index,
             valid_ratios=valid_ratios)
 
         # memory = memory.transpose((1, 0, 2))
@@ -927,7 +927,7 @@ class PETRTransformer(nn.Layer):
                 src_mask=hm_mask,
                 value_spatial_shapes=spatial_shapes[[0]],
                 reference_points=hm_reference_points,
-                level_start_index=level_start_index[0],
+                value_level_start_index=level_start_index[0],
                 valid_ratios=valid_ratios[:, :1, :])
             hm_memory = hm_memory.reshape((bs,
                 spatial_shapes[0, 0], spatial_shapes[0, 1], -1))
@@ -982,7 +982,7 @@ class PETRTransformer(nn.Layer):
             memory_mask=mask_flatten,
             reference_points=reference_points,
             value_spatial_shapes=spatial_shapes,
-            level_start_index=level_start_index,
+            value_level_start_index=level_start_index,
             valid_ratios=valid_ratios,
             kpt_branches=kpt_branches)
 
@@ -1042,7 +1042,7 @@ class PETRTransformer(nn.Layer):
             memory_mask=mask_flatten,
             reference_points=reference_points,
             value_spatial_shapes=spatial_shapes,
-            level_start_index=level_start_index,
+            value_level_start_index=level_start_index,
             valid_ratios=valid_ratios,
             reg_branches=kpt_branches,
             **kwargs)

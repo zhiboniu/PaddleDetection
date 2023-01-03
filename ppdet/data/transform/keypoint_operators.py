@@ -84,8 +84,8 @@ class KeyPointFlip(object):
                 kpts_lst[idx] = kpts_lst[idx][self.flip_permutation]
             kpts_lst[idx][..., 0] = hmsize - kpts_lst[idx][..., 0]
             kpts_lst[idx] = kpts_lst[idx].astype(np.int64)
-            kpts_lst[idx][kpts_lst[idx][..., 0] >= hmsize, :] = 0
-            kpts_lst[idx][kpts_lst[idx][..., 1] >= hmsize, :] = 0
+            kpts_lst[idx][kpts_lst[idx][..., 0] > hmsize, :] = 0
+            kpts_lst[idx][kpts_lst[idx][..., 1] > hmsize, :] = 0
             kpts_lst[idx][kpts_lst[idx][..., 0] < 0, :] = 0
             kpts_lst[idx][kpts_lst[idx][..., 1] < 0, :] = 0
         records['gt_joints'] = kpts_lst
@@ -124,8 +124,7 @@ class KeyPointFlip(object):
             self._flipjoints(records)
             self._flipmask(records)
             self._flipbbox(records)
-
-        records['image'] = image
+            records['image'] = image
             
         return records
 
