@@ -72,42 +72,59 @@ class KeyPointFlip(object):
         self.flip_prob = flip_prob
         self.hmsize = hmsize
 
-    def _flipjoints(self, records):
+    def _flipjoints(self, records, sizelst):
+        '''
+        records['gt_joints'] is Sequence in higherhrnet
+        '''
         if not ('gt_joints' in records and records['gt_joints'].size > 0):
             return records
 
         kpts_lst = records['gt_joints']
-        for idx, hmsize in enumerate(self.hmsize):
-            if kpts_lst[idx].ndim == 3:
-                kpts_lst[idx] = kpts_lst[idx][:, self.flip_permutation]
+        if isinstance(kpts_lst, Sequence):
+            for idx, hmsize in enumerate(sizelst):
+                if kpts_lst[idx].ndim == 3:
+                    kpts_lst[idx] = kpts_lst[idx][:, self.flip_permutation]
+                else:
+                    kpts_lst[idx] = kpts_lst[idx][self.flip_permutation]
+                kpts_lst[idx][..., 0] = hmsize - kpts_lst[idx][..., 0]
+                # kpts_lst[idx] = kpts_lst[idx].astype(np.int64)
+                kpts_lst[idx][kpts_lst[idx][..., 0] > hmsize, :] = 0
+                kpts_lst[idx][kpts_lst[idx][..., 1] > hmsize, :] = 0
+                kpts_lst[idx][kpts_lst[idx][..., 0] < 0, :] = 0
+                kpts_lst[idx][kpts_lst[idx][..., 1] < 0, :] = 0
+        else:
+            hmsize = sizelst[0]
+            if kpts_lst.ndim == 3:
+                kpts_lst = kpts_lst[:, self.flip_permutation]
             else:
-                kpts_lst[idx] = kpts_lst[idx][self.flip_permutation]
-            kpts_lst[idx][..., 0] = hmsize - kpts_lst[idx][..., 0]
-            kpts_lst[idx] = kpts_lst[idx].astype(np.int64)
-            kpts_lst[idx][kpts_lst[idx][..., 0] > hmsize, :] = 0
-            kpts_lst[idx][kpts_lst[idx][..., 1] > hmsize, :] = 0
-            kpts_lst[idx][kpts_lst[idx][..., 0] < 0, :] = 0
-            kpts_lst[idx][kpts_lst[idx][..., 1] < 0, :] = 0
+                kpts_lst = kpts_lst[self.flip_permutation]
+            kpts_lst[..., 0] = hmsize - kpts_lst[..., 0]
+            # kpts_lst = kpts_lst.astype(np.int64)
+            kpts_lst[kpts_lst[..., 0] > hmsize, :] = 0
+            kpts_lst[kpts_lst[..., 1] > hmsize, :] = 0
+            kpts_lst[kpts_lst[..., 0] < 0, :] = 0
+            kpts_lst[kpts_lst[..., 1] < 0, :] = 0
+        
         records['gt_joints'] = kpts_lst
         return records
 
-    def _flipmask(self, records):
+    def _flipmask(self, records, sizelst):
         if not 'mask' in records:
             return records
 
         mask_lst = records['mask']
-        for idx, hmsize in enumerate(self.hmsize):
+        for idx, hmsize in enumerate(sizelst):
             if len(mask_lst) > idx:
                 mask_lst[idx] = mask_lst[idx][:, ::-1]
         records['mask'] = mask_lst
         return records
 
-    def _flipbbox(self, records):
+    def _flipbbox(self, records, sizelst):
         if not 'gt_bbox' in records:
             return records
 
         bboxes = records['gt_bbox']
-        hmsize = self.hmsize[0]
+        hmsize = sizelst[0]
         bboxes[:, 0::2] = hmsize - bboxes[:, 0::2][:, ::-1]
         bboxes[:, 0::2] = np.clip(bboxes[:, 0::2], 0, hmsize)
         records['gt_bbox'] = bboxes
@@ -119,12 +136,15 @@ class KeyPointFlip(object):
         flip = np.random.random() < self.flip_prob
         if flip:
             image = image[:, ::-1]
-            if self.hmsize is None:
-                self.hmsize = [image.shape[1]]
-            self._flipjoints(records)
-            self._flipmask(records)
-            self._flipbbox(records)
             records['image'] = image
+            if self.hmsize is None:
+                sizelst = [image.shape[1]]
+            else:
+                sizelst = self.hmsize
+            self._flipjoints(records, sizelst)
+            self._flipmask(records, sizelst)
+            self._flipbbox(records, sizelst)
+            
             
         return records
 
@@ -154,7 +174,8 @@ class RandomAffine(object):
                  max_shift=0.2,
                  hmsize=None,
                  trainsize=512,
-                 scale_type='short'):
+                 scale_type='short',
+                 boldervalue=[114,114,114]):
         super(RandomAffine, self).__init__()
         self.max_degree = max_degree
         self.min_scale = scale[0]
@@ -163,8 +184,9 @@ class RandomAffine(object):
         self.hmsize = hmsize
         self.trainsize = trainsize
         self.scale_type = scale_type
+        self.boldervalue = boldervalue
 
-    def _get_affine_matrix(self, center, scale, res, rot=0):
+    def _get_affine_matrix_old(self, center, scale, res, rot=0):
         """Generate transformation matrix."""
         h = scale
         t = np.zeros((3, 3), dtype=np.float32)
@@ -190,34 +212,58 @@ class RandomAffine(object):
             t = np.dot(t_inv, np.dot(rot_mat, np.dot(t_mat, t)))
         return t
 
-    def _affine_joints_mask(self, degree, center, roi_size, targetsize, keypoints=None, heatmap_mask=None, gt_bbox=None):
+    def _get_affine_matrix(self, center, scale, res, rot=0):
+        """Generate transformation matrix."""
+        w,h = scale
+        t = np.zeros((3, 3), dtype=np.float32)
+        t[0, 0] = float(res[0]) / w
+        t[1, 1] = float(res[1]) / h
+        t[0, 2] = res[0] * (-float(center[0]) / w + .5)
+        t[1, 2] = res[1] * (-float(center[1]) / h + .5)
+        t[2, 2] = 1
+        if rot != 0:
+            rot = -rot  # To match direction of rotation from cropping
+            rot_mat = np.zeros((3, 3), dtype=np.float32)
+            rot_rad = rot * np.pi / 180
+            sn, cs = np.sin(rot_rad), np.cos(rot_rad)
+            rot_mat[0, :2] = [cs, -sn]
+            rot_mat[1, :2] = [sn, cs]
+            rot_mat[2, 2] = 1
+            # Need to rotate around center
+            t_mat = np.eye(3)
+            t_mat[0, 2] = -res[0] / 2
+            t_mat[1, 2] = -res[1] / 2
+            t_inv = t_mat.copy()
+            t_inv[:2, 2] *= -1
+            t = np.dot(t_inv, np.dot(rot_mat, np.dot(t_mat, t)))
+        return t
+
+    def _affine_joints_mask(self, degree, center, roi_size, dsize, keypoints=None, heatmap_mask=None, gt_bbox=None):
         kpts = None
         mask = None
         bbox = None
         mask_affine_mat = self._get_affine_matrix(
-            center, roi_size, (targetsize, targetsize), degree)[:2]
+            center, roi_size, dsize, degree)[:2]
         if heatmap_mask is not None:
-            mask = cv2.warpAffine(heatmap_mask, mask_affine_mat,
-                                    (targetsize, targetsize))
+            mask = cv2.warpAffine(heatmap_mask, mask_affine_mat, dsize)
             mask = ((mask / 255) > 0.5).astype(np.float32)
         if keypoints is not None:
             kpts = copy.deepcopy(keypoints)
             kpts[..., 0:2] = warp_affine_joints(kpts[..., 0:2].copy(),
                                                 mask_affine_mat)
-            # kpts[np.trunc(kpts[..., 0]) >= targetsize, :] = 0
-            # kpts[np.trunc(kpts[..., 1]) >= targetsize, :] = 0
+            # kpts[np.trunc(kpts[..., 0]) >= dsize[0], :] = 0
+            # kpts[np.trunc(kpts[..., 1]) >= dsize[1], :] = 0
             # kpts[np.trunc(kpts[..., 0]) < 0, :] = 0
             # kpts[np.trunc(kpts[..., 1]) < 0, :] = 0
         if gt_bbox is not None:
-            gt_shape = gt_bbox.shape
-            gt_bbox_warped = warp_affine_joints(gt_bbox.copy().reshape(-1, 2),
-                                                mask_affine_mat)
-            gt_bbox_warped = gt_bbox_warped.reshape(gt_shape)
-            bbox = np.zeros_like(gt_bbox_warped)
-            bbox[:, 0] = gt_bbox_warped[:, 0::2].min(1)
-            bbox[:, 2] = gt_bbox_warped[:, 0::2].max(1)
-            bbox[:, 1] = gt_bbox_warped[:, 1::2].min(1)
-            bbox[:, 3] = gt_bbox_warped[:, 1::2].max(1)
+            temp_bbox = gt_bbox[:,[0,3,2,1]]
+            cat_bbox = np.concatenate((gt_bbox, temp_bbox),axis=-1)
+            gt_bbox_warped = warp_affine_joints(cat_bbox,mask_affine_mat)
+            bbox = np.zeros_like(gt_bbox)
+            bbox[:, 0] = gt_bbox_warped[:, 0::2].min(1).clip(0, dsize[0])
+            bbox[:, 2] = gt_bbox_warped[:, 0::2].max(1).clip(0, dsize[0])
+            bbox[:, 1] = gt_bbox_warped[:, 1::2].min(1).clip(0, dsize[0])
+            bbox[:, 3] = gt_bbox_warped[:, 1::2].max(1).clip(0, dsize[1])
         return kpts, mask, bbox
 
     def __call__(self, records):
@@ -242,9 +288,11 @@ class RandomAffine(object):
         aug_scale = np.random.random() * (self.max_scale - self.min_scale
                                           ) + self.min_scale
         if self.scale_type == 'long':
-            scale = max(shape[0], shape[1]) / 1.0
+            scale = np.array([max(shape[0], shape[1]) / 1.0] * 2)
         elif self.scale_type == 'short':
-            scale = min(shape[0], shape[1]) / 1.0
+            scale = np.array([min(shape[0], shape[1]) / 1.0] * 2)
+        elif self.scale_type == 'wh':
+            scale = shape
         else:
             raise ValueError('Unknown scale type: {}'.format(self.scale_type))
         roi_size = aug_scale * scale
@@ -252,10 +300,10 @@ class RandomAffine(object):
         dy = int(0)
         if self.max_shift > 0:
 
-            dx = np.random.randint(-self.max_shift * roi_size,
-                                   self.max_shift * roi_size)
-            dy = np.random.randint(-self.max_shift * roi_size,
-                                   self.max_shift * roi_size)
+            dx = np.random.randint(-self.max_shift * roi_size[0],
+                                   self.max_shift * roi_size[0])
+            dy = np.random.randint(-self.max_shift * roi_size[0],
+                                   self.max_shift * roi_size[1])
 
         center += np.array([dx, dy])
         input_size = 2 * center
@@ -263,15 +311,15 @@ class RandomAffine(object):
             dsize = self.trainsize
             imgshape = (dsize, dsize)
         else:
-            dsize = int(scale)
+            dsize = scale
             imgshape = (shape.tolist())
 
-        image_affine_mat = self._get_affine_matrix(
-            center, roi_size, (dsize, dsize), degree)[:2]
+        image_affine_mat = self._get_affine_matrix(center, roi_size, dsize, degree)[:2]
         image = cv2.warpAffine(
             image,
             image_affine_mat, imgshape,
-            flags=cv2.INTER_LINEAR)
+            flags=cv2.INTER_LINEAR,
+            borderValue=self.boldervalue)
 
         if self.hmsize is None:
             kpts, mask, gt_bbox = self._affine_joints_mask(degree, center, roi_size, dsize, keypoints, heatmap_mask, gt_bbox)
@@ -284,7 +332,7 @@ class RandomAffine(object):
         kpts_lst = []
         mask_lst = []
         for hmsize in self.hmsize:
-            kpts, mask, gt_bbox = self._affine_joints_mask(degree, center, roi_size, hmsize, keypoints, heatmap_mask, gt_bbox)
+            kpts, mask, gt_bbox = self._affine_joints_mask(degree, center, roi_size, [hmsize, hmsize], keypoints, heatmap_mask, gt_bbox)
             kpts_lst.append(kpts)
             mask_lst.append(mask)
         records['image'] = image

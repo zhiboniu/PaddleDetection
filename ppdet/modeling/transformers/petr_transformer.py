@@ -126,6 +126,15 @@ class MultiScaleDeformablePoseAttention(nn.Layer):
                                            num_heads * num_levels * num_points)
         self.value_proj = nn.Linear(embed_dims, embed_dims)
         self.output_proj = nn.Linear(embed_dims, embed_dims)
+
+        try:
+            # use cuda op
+            from deformable_detr_ops import ms_deformable_attn
+        except:
+            # use paddle func
+            from .utils import deformable_attention_core_func as ms_deformable_attn
+        self.ms_deformable_attn_core = ms_deformable_attn
+
         self.init_weights()
 
     def init_weights(self):
@@ -225,8 +234,9 @@ class MultiScaleDeformablePoseAttention(nn.Layer):
                 f'Last dim of reference_points must be'
                 f' 2K, but get {reference_points.shape[-1]} instead.')
 
-        output = deformable_attention_core_func(
-            value, value_spatial_shapes, sampling_locations, attention_weights)
+        output = self.ms_deformable_attn_core(
+            value, value_spatial_shapes, value_level_start_index,
+            sampling_locations, attention_weights)
 
         # output = self.output_proj(output).transpose((1, 0, 2))
         output = self.output_proj(output)

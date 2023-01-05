@@ -321,7 +321,7 @@ class PETRHead(nn.Layer):
                 F.interpolate(img_masks[None],
                               size=feat.shape[-2:]).squeeze(0))
             mlvl_positional_encodings.append(
-                self.positional_encoding(mlvl_masks[-1]))
+                self.positional_encoding(mlvl_masks[-1]).transpose([0, 3, 1, 2]))
 
 
         query_embeds = self.query_embedding.weight
@@ -646,12 +646,8 @@ class PETRHead(nn.Layer):
                                               3)).clone()
             gt_keypoint[..., :2] /= 8
 
-            try:
-                assert gt_keypoint[..., 0].max() <= w+0.5  # new coordinate system
-                assert gt_keypoint[..., 1].max() <= h+0.5  # new coordinate system
-            except:
-                print(gt_keypoint[..., 0].max(), gt_keypoint[..., 1].max(), w, h)
-                import pdb;pdb.set_trace()
+            assert gt_keypoint[..., 0].max() <= w+0.5  # new coordinate system
+            assert gt_keypoint[..., 1].max() <= h+0.5  # new coordinate system
             gt_bbox /= 8
             gt_w = gt_bbox[:, 2] - gt_bbox[:, 0]
             gt_h = gt_bbox[:, 3] - gt_bbox[:, 1]

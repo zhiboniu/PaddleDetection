@@ -2594,7 +2594,7 @@ class RandomShortSideResize(BaseOperator):
             oh = int(size * h / w)
         else:
             oh = size
-            ow = int(size * w / h)
+            ow = int(round(size * w / h))
 
         return (ow, oh)
 

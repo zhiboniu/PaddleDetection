@@ -73,13 +73,6 @@ class MSDeformableAttention(nn.Layer):
 
         self._reset_parameters()
 
-        try:
-            # use cuda op
-            from deformable_detr_ops import ms_deformable_attn
-        except:
-            # use paddle func
-            from .utils import deformable_attention_core_func as ms_deformable_attn
-        self.ms_deformable_attn_core = ms_deformable_attn
 
     def _reset_parameters(self):
         # sampling_offsets

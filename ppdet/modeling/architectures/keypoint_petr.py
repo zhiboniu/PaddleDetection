@@ -23,6 +23,9 @@ from ppdet.core.workspace import register, create
 from .meta_arch import BaseArch
 from .. import layers as L
 
+import os
+from ppdet.utils.visualizer import draw_pose
+
 __all__ = ['PETR']
 
 @register
@@ -73,34 +76,28 @@ class PETR(BaseArch):
         gt_labels = []
         gt_keypoints = []
         gt_areas = []
-        # print("gt_bbox shape", self.inputs['gt_bbox'].shape)
         pad_gt_mask = self.inputs['pad_gt_mask'].astype("bool").squeeze(-1)
         for idx, im_shape in enumerate(self.inputs['im_shape']):
             img_meta = {'img_shape': im_shape.astype("int32").tolist()+[1,], 'batch_input_shape': self.inputs['image'].shape[-2:], 'image_name': self.inputs['image_file'][idx]}
             img_metas.append(img_meta)
             if (not pad_gt_mask[idx].any()):
-                # import pdb;pdb.set_trace()
                 gt_keypoints.append(self.inputs['gt_joints'][idx][:1])
                 gt_labels.append(self.inputs['gt_class'][idx][:1])
                 gt_bboxes.append(self.inputs['gt_bbox'][idx][:1])
                 gt_areas.append(self.inputs['gt_areas'][idx][:1])
-                if self.inputs['gt_joints'][idx][:1].shape[0]==0:
-                    import pdb;pdb.set_trace()
                 continue
-            if self.inputs['gt_joints'][idx].size==0:
-                import pdb;pdb.set_trace()
-            # joints = self.inputs['gt_joints'][idx][pad_gt_mask[idx]]
-            # if joints.shape[0]==0:
-            #     import pdb;pdb.set_trace()
-            # valid_joints = (joints[..., 2] > 0).any(-1)
             
             gt_keypoints.append(self.inputs['gt_joints'][idx][pad_gt_mask[idx]])
             gt_labels.append(self.inputs['gt_class'][idx][pad_gt_mask[idx]])
             gt_bboxes.append(self.inputs['gt_bbox'][idx][pad_gt_mask[idx]])
             gt_areas.append(self.inputs['gt_areas'][idx][pad_gt_mask[idx]])
-            if self.inputs['gt_joints'][idx][pad_gt_mask[idx]].shape[0]==0:
-                import pdb;pdb.set_trace()
 
+            # image = (self.inputs['image'][idx].transpose((1,2,0)) + 3.0)*30
+            # keypoint_res = [{'keypoints': gt_keypoints[-1].numpy()}]
+            # image = draw_pose(image, keypoint_res, 0.2)
+            # filename = "augvis/vis_" + os.path.basename(img_meta['image_name'])
+            # image.save(filename)
+            # print("save image:{}".format(filename))
         return img_metas, gt_bboxes, gt_labels, gt_keypoints, gt_areas
 
     def get_loss(self):
@@ -129,6 +126,7 @@ class PETR(BaseArch):
         
         img_metas, gt_bboxes, gt_labels, gt_keypoints, gt_areas = self.get_inputs()
         gt_bboxes_ignore = getattr(self.inputs, 'gt_bboxes_ignore', None)
+        # self.inputs['image'] = paddle.randn((2,3,1000,1000),dtype='float32')
 
         x = self.extract_feat(self.inputs)
         losses = self.bbox_head.forward_train(x, img_metas, gt_bboxes,
@@ -163,15 +161,12 @@ class PETR(BaseArch):
         """
         img = self.inputs['image']
         batch_size, _, height, width = img.shape
-        # print(self.inputs.keys())
-        # import pdb;pdb.set_trace()
         img_metas = [
             dict(
                 batch_input_shape=(height, width),
                 img_shape=(height, width, 3),
                 scale_factor=self.inputs['scale_factor'][i]) for i in range(batch_size)
         ]
-        # import pdb;pdb.set_trace()
         kptpred = self.simple_test(self.inputs, img_metas=img_metas, rescale=True)
         keypoints = kptpred[0][1][0]
         bboxs = kptpred[0][0][0]
