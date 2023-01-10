@@ -2866,12 +2866,12 @@ class RandomSizeCrop(BaseOperator):
         x2 = x1 + w
         y2 = y1 + h
         # x1, y1, x2, y2 = crop
-        joints[np.trunc(joints[..., 0]) > x2, :] = 0
-        joints[np.trunc(joints[..., 1]) > y2, :] = 0
-        joints[np.trunc(joints[..., 0]) < x1, :] = 0
-        joints[np.trunc(joints[..., 1]) < y1, :] = 0
         joints[..., 0] -= x1
         joints[..., 1] -= y1
+        joints[np.trunc(joints[..., 0]) > w, :] = 0
+        joints[np.trunc(joints[..., 1]) > h, :] = 0
+        joints[np.trunc(joints[..., 0]) < 0, :] = 0
+        joints[np.trunc(joints[..., 1]) < 0, :] = 0
         return joints
 
     def apply_segm(self, segms, region, image_shape):

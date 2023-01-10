@@ -88,10 +88,10 @@ class KeyPointFlip(object):
                     kpts_lst[idx] = kpts_lst[idx][self.flip_permutation]
                 kpts_lst[idx][..., 0] = hmsize - kpts_lst[idx][..., 0]
                 # kpts_lst[idx] = kpts_lst[idx].astype(np.int64)
-                kpts_lst[idx][kpts_lst[idx][..., 0] > hmsize, :] = 0
-                kpts_lst[idx][kpts_lst[idx][..., 1] > hmsize, :] = 0
-                kpts_lst[idx][kpts_lst[idx][..., 0] < 0, :] = 0
-                kpts_lst[idx][kpts_lst[idx][..., 1] < 0, :] = 0
+                # kpts_lst[idx][kpts_lst[idx][..., 0] > hmsize, :] = 0
+                # kpts_lst[idx][kpts_lst[idx][..., 1] > hmsize, :] = 0
+                # kpts_lst[idx][kpts_lst[idx][..., 0] < 0, :] = 0
+                # kpts_lst[idx][kpts_lst[idx][..., 1] < 0, :] = 0
         else:
             hmsize = sizelst[0]
             if kpts_lst.ndim == 3:
@@ -100,10 +100,10 @@ class KeyPointFlip(object):
                 kpts_lst = kpts_lst[self.flip_permutation]
             kpts_lst[..., 0] = hmsize - kpts_lst[..., 0]
             # kpts_lst = kpts_lst.astype(np.int64)
-            kpts_lst[kpts_lst[..., 0] > hmsize, :] = 0
-            kpts_lst[kpts_lst[..., 1] > hmsize, :] = 0
-            kpts_lst[kpts_lst[..., 0] < 0, :] = 0
-            kpts_lst[kpts_lst[..., 1] < 0, :] = 0
+            # kpts_lst[kpts_lst[..., 0] > hmsize, :] = 0
+            # kpts_lst[kpts_lst[..., 1] > hmsize, :] = 0
+            # kpts_lst[kpts_lst[..., 0] < 0, :] = 0
+            # kpts_lst[kpts_lst[..., 1] < 0, :] = 0
         
         records['gt_joints'] = kpts_lst
         return records
@@ -131,10 +131,9 @@ class KeyPointFlip(object):
         return records
 
     def __call__(self, records):
-        image = records['image']
-
         flip = np.random.random() < self.flip_prob
         if flip:
+            image = records['image']
             image = image[:, ::-1]
             records['image'] = image
             if self.hmsize is None:
@@ -251,10 +250,10 @@ class RandomAffine(object):
             kpts = copy.deepcopy(keypoints)
             kpts[..., 0:2] = warp_affine_joints(kpts[..., 0:2].copy(),
                                                 mask_affine_mat)
-            # kpts[np.trunc(kpts[..., 0]) >= dsize[0], :] = 0
-            # kpts[np.trunc(kpts[..., 1]) >= dsize[1], :] = 0
-            # kpts[np.trunc(kpts[..., 0]) < 0, :] = 0
-            # kpts[np.trunc(kpts[..., 1]) < 0, :] = 0
+            kpts[np.trunc(kpts[..., 0]) >= dsize[0], :] = 0
+            kpts[np.trunc(kpts[..., 1]) >= dsize[1], :] = 0
+            kpts[np.trunc(kpts[..., 0]) < 0, :] = 0
+            kpts[np.trunc(kpts[..., 1]) < 0, :] = 0
         if gt_bbox is not None:
             temp_bbox = gt_bbox[:,[0,3,2,1]]
             cat_bbox = np.concatenate((gt_bbox, temp_bbox),axis=-1)
@@ -262,7 +261,7 @@ class RandomAffine(object):
             bbox = np.zeros_like(gt_bbox)
             bbox[:, 0] = gt_bbox_warped[:, 0::2].min(1).clip(0, dsize[0])
             bbox[:, 2] = gt_bbox_warped[:, 0::2].max(1).clip(0, dsize[0])
-            bbox[:, 1] = gt_bbox_warped[:, 1::2].min(1).clip(0, dsize[0])
+            bbox[:, 1] = gt_bbox_warped[:, 1::2].min(1).clip(0, dsize[1])
             bbox[:, 3] = gt_bbox_warped[:, 1::2].max(1).clip(0, dsize[1])
         return kpts, mask, bbox
 
