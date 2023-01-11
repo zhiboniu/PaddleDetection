@@ -797,8 +797,8 @@ class PETRTransformer(nn.Layer):
         _, H, W = mask.shape
         valid_H = paddle.sum(mask[:, :, 0].astype('float'), 1)
         valid_W = paddle.sum(mask[:, 0, :].astype('float'), 1)
-        valid_ratio_h = valid_H.astype('float32') / H
-        valid_ratio_w = valid_W.astype('float32') / W
+        valid_ratio_h = valid_H.astype('float') / H
+        valid_ratio_w = valid_W.astype('float') / W
         valid_ratio = paddle.stack([valid_ratio_w, valid_ratio_h], -1)
         return valid_ratio
 

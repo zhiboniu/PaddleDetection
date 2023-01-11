@@ -748,7 +748,7 @@ class Resize(BaseOperator):
 
     def apply_area(self, area, scale):
         im_scale_x, im_scale_y = scale
-        return area*im_scale_x*im_scale_y
+        return area * im_scale_x * im_scale_y
 
     def apply_joints(self, joints, scale, size):
         im_scale_x, im_scale_y = scale
@@ -2657,6 +2657,10 @@ class RandomShortSideResize(BaseOperator):
                                                 [im_scale_x, im_scale_y],
                                                 target_size)
 
+        # apply areas
+        if 'gt_areas' in sample:
+            sample['gt_areas'] = self.apply_area(sample['gt_areas'], [im_scale_x, im_scale_y])
+
         return sample
 
     def apply_bbox(self, bbox, scale, size):
@@ -2678,6 +2682,10 @@ class RandomShortSideResize(BaseOperator):
         joints[np.trunc(joints[..., 0]) < 0, :] = 0
         joints[np.trunc(joints[..., 1]) < 0, :] = 0
         return joints
+
+    def apply_area(self, area, scale):
+        im_scale_x, im_scale_y = scale
+        return area * im_scale_x * im_scale_y
 
     def apply_segm(self, segms, im_size, scale):
         def _resize_poly(poly, im_scale_x, im_scale_y):

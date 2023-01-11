@@ -65,6 +65,7 @@ class MSDeformableAttention(nn.Layer):
         self.output_proj = nn.Linear(embed_dim, embed_dim)
         try:
             # use cuda op
+            print("use deformable_detr_ops in ms_deformable_attn")
             from deformable_detr_ops import ms_deformable_attn
         except:
             # use paddle func
