@@ -930,10 +930,10 @@ class PETRTransformer(nn.Layer):
             hm_reference_points = paddle.slice(reference_points, starts=level_start_index[0], ends=level_start_index[1], axes=[1])[:,:,:1,:]
 
             # hm_memory = hm_memory.transpose((1, 0, 2))
-            #markniu: hm_memory较大的diff 1e-3级别差别，大于memory的1e-7
+            # official code make a mistake of pos_embed to pose_embed, which disable pos_embed
             hm_memory = self.hm_encoder(
                 src=hm_memory,
-                pos_embed=hm_pos_embed,
+                pose_embed=hm_pos_embed,
                 src_mask=hm_mask,
                 value_spatial_shapes=spatial_shapes[[0]],
                 reference_points=hm_reference_points,

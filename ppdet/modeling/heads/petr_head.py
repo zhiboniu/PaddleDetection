@@ -747,9 +747,6 @@ class PETRHead(nn.Layer):
         # assert num_valid_kpt == (kpt_targets>0).sum().item()
         loss_kpt = self.loss_kpt(
             kpt_preds, kpt_targets.detach(), kpt_weights.detach(), avg_factor=num_valid_kpt)
-        # if loss_kpt == 0:
-        #     print("loss kpt=0, no pos inds. num total pos:{}".format(num_total_pos))
-            # import pdb;pdb.set_trace()
 
         # keypoint oks loss
         pos_inds = kpt_weights.sum(-1) > 0

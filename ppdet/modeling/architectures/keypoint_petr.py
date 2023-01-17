@@ -127,6 +127,7 @@ class PETR(BaseArch):
         img_metas, gt_bboxes, gt_labels, gt_keypoints, gt_areas = self.get_inputs()
         gt_bboxes_ignore = getattr(self.inputs, 'gt_bboxes_ignore', None)
         # self.inputs['image'] = paddle.randn((2,3,1000,1000),dtype='float32')
+        # self.inputs['image'][...] = 1.0
 
         x = self.extract_feat(self.inputs)
         losses = self.bbox_head.forward_train(x, img_metas, gt_bboxes,
@@ -136,6 +137,11 @@ class PETR(BaseArch):
         for k,v in losses.items():
             loss += v
         losses['loss'] = loss
+
+        # for key,value in losses.items():
+        #     if 'kpt' not in key:
+        #         continue
+        #     print("{}: {}\n".format(key, value))
         return losses
 
     def get_pred_numpy(self):
