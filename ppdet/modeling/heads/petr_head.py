@@ -93,7 +93,6 @@ def gaussian2D(shape, sigma=1):
 
     h = paddle.exp(-(x * x + y * y) / (2 * sigma * sigma))
     h[h < np.finfo(np.float32).eps * h.max()] = 0
-    h = masked_fill(h, h < np.finfo(np.float32).eps * h.max(), 0)
     return h
 
 def draw_umich_gaussian(heatmap, center, radius, k=1):
@@ -646,8 +645,8 @@ class PETRHead(nn.Layer):
                                               3)).clone()
             gt_keypoint[..., :2] /= 8
 
-            assert gt_keypoint[..., 0].max() <= w+0.5  # new coordinate system
-            assert gt_keypoint[..., 1].max() <= h+0.5  # new coordinate system
+            assert gt_keypoint[..., 0].max() <= w  # new coordinate system
+            assert gt_keypoint[..., 1].max() <= h  # new coordinate system
             gt_bbox /= 8
             gt_w = gt_bbox[:, 2] - gt_bbox[:, 0]
             gt_h = gt_bbox[:, 3] - gt_bbox[:, 1]
@@ -751,8 +750,7 @@ class PETRHead(nn.Layer):
         # keypoint oks loss
         pos_inds = kpt_weights.sum(-1) > 0
         if not pos_inds.any():
-            # loss_oks = pos_kpt_preds.sum() * 0
-            loss_oks = paddle.to_tensor([0])
+            loss_oks = kpt_preds.sum() * 0
         else:
             factors = factors[pos_inds][:, :2].tile(((1, kpt_preds.shape[-1] // 2)))
             pos_kpt_preds = kpt_preds[pos_inds] * factors

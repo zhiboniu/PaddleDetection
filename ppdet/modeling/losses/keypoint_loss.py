@@ -230,9 +230,9 @@ def recursive_sum(inputs):
 
 
 def oks_overlaps(kpt_preds, kpt_gts, kpt_valids, kpt_areas, sigmas):
-    if kpt_gts.size==0:
-        print("oks loss size==0")
+    if not kpt_gts.astype('bool').any():
         return kpt_preds.sum()*0
+    
     sigmas = paddle.to_tensor(sigmas, dtype=kpt_preds.dtype)
     variances = (sigmas * 2)**2
 
@@ -422,7 +422,7 @@ def center_focal_loss(pred, gt, weight=None, mask=None, avg_factor=None, reducti
             distribution, with shape [bs, c, h, w].
         mask (Tensor): The valid mask. Defaults to None.
     """
-    if gt.size==0:
+    if not gt.astype('bool').any():
         return pred.sum()*0
     pos_inds = gt.equal(1).astype('float32')
     if mask is None:
@@ -546,8 +546,7 @@ def l1_loss(pred, target, weight=None, reduction='mean', avg_factor=None):
     Returns:
         Tensor: Calculated loss
     """
-    if target.numel() == 0:
-        print("l1 loss target.numel==0")
+    if not target.astype('bool').any():
         return pred.sum() * 0
 
     assert pred.shape == target.shape

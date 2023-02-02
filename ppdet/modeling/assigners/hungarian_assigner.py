@@ -160,6 +160,8 @@ class PoseHungarianAssigner:
             :obj:`AssignResult`: The assigned result.
         """
         num_gts, num_kpts = gt_keypoints.shape[0], kpt_pred.shape[0]
+        if not gt_keypoints.astype('bool').any():
+            num_gts = 0
 
         # 1. assign -1 by default
         assigned_gt_inds = paddle.full((num_kpts, ),
@@ -206,11 +208,7 @@ class PoseHungarianAssigner:
         if linear_sum_assignment is None:
             raise ImportError('Please run "pip install scipy" '
                               'to install scipy first.')
-        try:
-            matched_row_inds, matched_col_inds = linear_sum_assignment(cost)
-        except:
-            print(cost)
-            import pdb;pdb.set_trace()
+        matched_row_inds, matched_col_inds = linear_sum_assignment(cost)
         matched_row_inds = paddle.to_tensor(matched_row_inds)
         matched_col_inds = paddle.to_tensor(matched_col_inds)
 

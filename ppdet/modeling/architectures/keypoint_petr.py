@@ -31,14 +31,13 @@ __all__ = ['PETR']
 @register
 class PETR(BaseArch):
     __category__ = 'architecture'
-    __inject__ = ['backbone', 'neck', 'bbox_head', 'loss']
+    __inject__ = ['backbone', 'neck', 'bbox_head']
 
     def __init__(
             self,
             backbone='ResNet',
             neck='ChannelMapper',
-            bbox_head='PETRHead',
-            loss='Pose3DLoss'):
+            bbox_head='PETRHead'):
         """
         METRO network, see https://arxiv.org/abs/xxx
 
@@ -51,7 +50,6 @@ class PETR(BaseArch):
             self.with_neck = True
         self.neck = neck
         self.bbox_head = bbox_head
-        self.loss = loss
         self.deploy = False
 
     # @classmethod

@@ -2691,10 +2691,10 @@ class RandomShortSideResize(BaseOperator):
 
         if w < h:
             ow = size
-            oh = int(size * h / w)
+            oh = min(int(size * h / w), max_size)
         else:
             oh = size
-            ow = int(round(size * w / h))
+            ow = min(int(round(size * w / h)), max_size)
 
         return (ow, oh)
 
