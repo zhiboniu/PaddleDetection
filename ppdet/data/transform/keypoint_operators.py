@@ -250,10 +250,10 @@ class RandomAffine(object):
             kpts = copy.deepcopy(keypoints)
             kpts[..., 0:2] = warp_affine_joints(kpts[..., 0:2].copy(),
                                                 mask_affine_mat)
-            kpts[np.trunc(kpts[..., 0]) >= dsize[0], :] = 0
-            kpts[np.trunc(kpts[..., 1]) >= dsize[1], :] = 0
-            kpts[np.trunc(kpts[..., 0]) < 0, :] = 0
-            kpts[np.trunc(kpts[..., 1]) < 0, :] = 0
+            kpts[(kpts[..., 0]) > dsize[0], :] = 0
+            kpts[(kpts[..., 1]) > dsize[1], :] = 0
+            kpts[(kpts[..., 0]) < 0, :] = 0
+            kpts[(kpts[..., 1]) < 0, :] = 0
         if gt_bbox is not None:
             temp_bbox = gt_bbox[:,[0,3,2,1]]
             cat_bbox = np.concatenate((gt_bbox, temp_bbox),axis=-1)

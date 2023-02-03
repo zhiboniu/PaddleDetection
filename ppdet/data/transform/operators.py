@@ -855,10 +855,12 @@ class Resize(BaseOperator):
         resize_w, resize_h = size
         joints[..., 0] *= im_scale_x
         joints[..., 1] *= im_scale_y
-        joints[np.trunc(joints[..., 0]) > resize_w, :] = 0
-        joints[np.trunc(joints[..., 1]) > resize_h, :] = 0
-        joints[np.trunc(joints[..., 0]) < 0, :] = 0
-        joints[np.trunc(joints[..., 1]) < 0, :] = 0
+        joints[..., 0] = np.clip(joints[..., 0], 0, resize_w)
+        joints[..., 1] = np.clip(joints[..., 1], 0, resize_h)
+        # joints[joints[..., 0] > resize_w, :] = 0
+        # joints[joints[..., 1] > resize_h, :] = 0
+        # joints[joints[..., 0] < 0, :] = 0
+        # joints[joints[..., 1] < 0, :] = 0
         return joints
 
     def apply_segm(self, segms, im_size, scale):
@@ -1685,10 +1687,10 @@ class RandomCrop(BaseOperator):
 
     def _crop_joints(self, joints, crop):
         x1, y1, x2, y2 = crop
-        joints[np.trunc(joints[..., 0]) > x2, :] = 0
-        joints[np.trunc(joints[..., 1]) > y2, :] = 0
-        joints[np.trunc(joints[..., 0]) < x1, :] = 0
-        joints[np.trunc(joints[..., 1]) < y1, :] = 0
+        joints[joints[..., 0] > x2, :] = 0
+        joints[joints[..., 1] > y2, :] = 0
+        joints[joints[..., 0] < x1, :] = 0
+        joints[joints[..., 1] < y1, :] = 0
         joints[..., 0] -= x1
         joints[..., 1] -= y1
         return joints
@@ -2691,10 +2693,10 @@ class RandomShortSideResize(BaseOperator):
 
         if w < h:
             ow = size
-            oh = min(int(size * h / w), max_size)
+            oh = int(round(size * h / w))
         else:
             oh = size
-            ow = min(int(round(size * w / h)), max_size)
+            ow = int(round(size * w / h))
 
         return (ow, oh)
 
@@ -2777,10 +2779,12 @@ class RandomShortSideResize(BaseOperator):
         resize_w, resize_h = size
         joints[..., 0] *= im_scale_x
         joints[..., 1] *= im_scale_y
-        joints[np.trunc(joints[..., 0]) > resize_w, :] = 0
-        joints[np.trunc(joints[..., 1]) > resize_h, :] = 0
-        joints[np.trunc(joints[..., 0]) < 0, :] = 0
-        joints[np.trunc(joints[..., 1]) < 0, :] = 0
+        # joints[joints[..., 0] >= resize_w, :] = 0
+        # joints[joints[..., 1] >= resize_h, :] = 0
+        # joints[joints[..., 0] < 0, :] = 0
+        # joints[joints[..., 1] < 0, :] = 0
+        joints[..., 0] = np.clip(joints[..., 0], 0, resize_w)
+        joints[..., 1] = np.clip(joints[..., 1], 0, resize_h)
         return joints
 
     def apply_area(self, area, scale):
@@ -2976,10 +2980,10 @@ class RandomSizeCrop(BaseOperator):
         # x1, y1, x2, y2 = crop
         joints[..., 0] -= x1
         joints[..., 1] -= y1
-        joints[np.trunc(joints[..., 0]) > w, :] = 0
-        joints[np.trunc(joints[..., 1]) > h, :] = 0
-        joints[np.trunc(joints[..., 0]) < 0, :] = 0
-        joints[np.trunc(joints[..., 1]) < 0, :] = 0
+        joints[joints[..., 0] > w, :] = 0
+        joints[joints[..., 1] > h, :] = 0
+        joints[joints[..., 0] < 0, :] = 0
+        joints[joints[..., 1] < 0, :] = 0
         return joints
 
     def apply_segm(self, segms, region, image_shape):

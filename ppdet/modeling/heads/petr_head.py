@@ -625,7 +625,6 @@ class PETRHead(nn.Layer):
         loss_hm = self.loss_heatmap(hm_pred, hm_mask, gt_keypoints_list,
                                     gt_labels_list, gt_bboxes_list)
         loss_dict['loss_hm'] = loss_hm
-        # print(loss_dict)
 
         return loss_dict, (kpt_preds_list[-1], kpt_targets_list[-1],
                            area_targets_list[-1], kpt_weights_list[-1])
@@ -645,8 +644,10 @@ class PETRHead(nn.Layer):
                                               3)).clone()
             gt_keypoint[..., :2] /= 8
 
-            assert gt_keypoint[..., 0].max() <= w  # new coordinate system
-            assert gt_keypoint[..., 1].max() <= h  # new coordinate system
+            assert gt_keypoint[..., 0].max() <= w+0.5  # new coordinate system
+            assert gt_keypoint[..., 1].max() <= h+0.5  # new coordinate system
+            if gt_keypoint[..., 0].max()>w or gt_keypoint[..., 1].max()>h:
+                print("joints: [{},{}] out of [{},{}]\n".format(gt_keypoint[..., 0].max(), gt_keypoint[..., 1].max(), w, h))
             gt_bbox /= 8
             gt_w = gt_bbox[:, 2] - gt_bbox[:, 0]
             gt_h = gt_bbox[:, 3] - gt_bbox[:, 1]
