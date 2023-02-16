@@ -216,13 +216,12 @@ TrainReader:
         scale: [1.0, 1.0]
         max_shift: 0.
         trainsize: -1
-    - RandomSelect: { transforms1: [ RandomShortSideRangeResize: { scales: [[400, 1200], [1200, 1200]]} ],
+    - RandomSelect: { transforms1: [ RandomShortSideRangeResize: { scales: [[400, 1400], [1400, 1400]]} ],
                       transforms2: [
                           RandomShortSideResize: { short_side_sizes: [ 400, 500, 600 ] },
                           RandomSizeCrop: { min_size: 384, max_size: 600 },
-                          RandomShortSideRangeResize: { scales: [[400, 1200], [1200, 1200]]} ]}
+                          RandomShortSideRangeResize: { scales: [[400, 1400], [1400, 1400]]} ]}
   batch_transforms:
-    # - BatchRandomResize: {target_size: [[400, 4200],[500, 4200],[600, 4200],[700, 4200],[800, 4200],[900, 4200],[1000, 4200],[1100, 4200],[1100, 4200],[1300, 4200],[1400, 4200]], random_size: True, random_interp: True, keep_ratio: True}
     - NormalizeImage: {mean: *global_mean, std: *global_std, is_scale: True}
     - PadGT: {pad_img: True, minimum_gtnum: 1}
     - Permute: {}

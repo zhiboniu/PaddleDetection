@@ -2779,10 +2779,10 @@ class RandomShortSideResize(BaseOperator):
         resize_w, resize_h = size
         joints[..., 0] *= im_scale_x
         joints[..., 1] *= im_scale_y
-        # joints[joints[..., 0] >= resize_w, :] = 0
-        # joints[joints[..., 1] >= resize_h, :] = 0
-        # joints[joints[..., 0] < 0, :] = 0
-        # joints[joints[..., 1] < 0, :] = 0
+        joints[joints[..., 0] >= resize_w, :] = 0
+        joints[joints[..., 1] >= resize_h, :] = 0
+        joints[joints[..., 0] < 0, :] = 0
+        joints[joints[..., 1] < 0, :] = 0
         joints[..., 0] = np.clip(joints[..., 0], 0, resize_w)
         joints[..., 1] = np.clip(joints[..., 1], 0, resize_h)
         return joints

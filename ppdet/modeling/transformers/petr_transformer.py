@@ -933,7 +933,7 @@ class PETRTransformer(nn.Layer):
             # official code make a mistake of pos_embed to pose_embed, which disable pos_embed
             hm_memory = self.hm_encoder(
                 src=hm_memory,
-                pose_embed=hm_pos_embed,
+                pos_embed=hm_pos_embed,
                 src_mask=hm_mask,
                 value_spatial_shapes=spatial_shapes[[0]],
                 reference_points=hm_reference_points,
