@@ -107,7 +107,7 @@ def mpjpe_focal(pred, gt, has_3d_joints):
     mpjpe_error = paddle.sqrt(mse_error)
     mean = mpjpe_error.mean()
     std = mpjpe_error.std()
-    atte = 2 * F.sigmoid(6 * (mpjpe_error - mean) / std)
+    atte = 2 * F.sigmoid(5 * (mpjpe_error - mean) / std)
     mse_error *= atte
     return mse_error.mean()
 
